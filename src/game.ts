@@ -123,11 +123,33 @@ function emptyBoard(): Board {
 /** 持ち駒（種類ごとの枚数）。種類は未成りのもののみ。 */
 export type Hand = Partial<Record<PieceType, number>>
 
+/**
+ * 勝敗ルール（対局開始時に選ぶ切り替え式）。
+ * - 'first'    案A：誰かの王を詰ませたら、その人の勝ち（早抜け）。
+ * - 'survivor' 案B：詰まされたら脱落、最後の 1 人が勝ち（生き残り）。
+ */
+export type WinRule = 'first' | 'survivor'
+
+/** 決着の内容 */
+export interface GameResult {
+  winner: Seat
+  /** 負け方（案A の表示用。案B は 'survivor'）。 */
+  reason: 'checkmate' | 'stalemate' | 'survivor'
+  /** 案A で詰み／手詰まりになった人 */
+  loser?: Seat
+}
+
 /** ゲーム全体の状態 */
 export interface GameState {
   board: Board
   hands: Record<Seat, Hand>
   turn: Seat
+  /** 勝敗ルール（対局中は不変） */
+  rule: WinRule
+  /** 脱落した陣（案B 専用。案A では常に全 false） */
+  eliminated: Record<Seat, boolean>
+  /** 決着が付いていれば結果、未決着なら null */
+  result: GameResult | null
 }
 
 /** 盤クリック or 持ち駒クリックの選択状態 */
@@ -136,18 +158,36 @@ export type Selection =
   | { kind: 'hand'; type: PieceType }
   | null
 
-/** 次の手番（時計回り）。脱落は未実装なので単純に巡回。 */
+/** 次の手番（時計回り・単純巡回）。脱落を考慮するなら nextLiveSeat を使う。 */
 export function nextSeat(seat: Seat): Seat {
   const i = TURN_ORDER.indexOf(seat)
   return TURN_ORDER[(i + 1) % TURN_ORDER.length]
 }
 
-/** 初期ゲーム状態 */
-export function createInitialState(): GameState {
+/** まだ脱落していない陣の一覧（時計回り順） */
+export function liveSeats(eliminated: Record<Seat, boolean>): Seat[] {
+  return TURN_ORDER.filter((s) => !eliminated[s])
+}
+
+/** seat の次の「生存している」陣（時計回り）。他に生存者がいなければ seat 自身を返す。 */
+export function nextLiveSeat(seat: Seat, eliminated: Record<Seat, boolean>): Seat {
+  let i = TURN_ORDER.indexOf(seat)
+  for (let k = 0; k < TURN_ORDER.length; k++) {
+    i = (i + 1) % TURN_ORDER.length
+    if (!eliminated[TURN_ORDER[i]]) return TURN_ORDER[i]
+  }
+  return seat
+}
+
+/** 初期ゲーム状態（勝敗ルールを指定。既定は案A＝早抜け） */
+export function createInitialState(rule: WinRule = 'first'): GameState {
   return {
     board: createInitialBoard(),
     hands: { south: {}, west: {}, north: {}, east: {} },
     turn: TURN_ORDER[0],
+    rule,
+    eliminated: { south: false, west: false, north: false, east: false },
+    result: null,
   }
 }
 

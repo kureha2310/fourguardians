@@ -3,7 +3,7 @@
 このファイルは、別のセッション／チャットで開発を引き継ぐための仕様・決定事項・残作業のまとめです。
 **ルールは考案者のオリジナル**なので、コードだけでは読み取れない決定をここに記録しています。
 
-最終更新: 2026-06-08
+最終更新: 2026-06-08（勝敗・脱落／王手・詰み判定を実装）
 
 ---
 
@@ -54,19 +54,34 @@
 
 ### 手番
 - **時計回り**：south → west → north → east → …（`TURN_ORDER` / `nextSeat`）。
+- 脱落者がいる場合は飛ばす（`nextLiveSeat`）。
 - 手番が進むと、その人の陣を自動で手前に表示（ローカル同卓向け。オンライン化時は自分視点固定にする）。
+
+### 勝敗・脱落（実装済み・切り替え式）
+- 対局開始時に **案A（早抜け）/ 案B（生き残り）** を選ぶ（`GameState.rule` = `'first' | 'survivor'`）。ルール切替＝対局リセット。
+- **着手の合法性**：自分の王が取られたままになる手は禁止（`legalMoves` / `isLegalDrop`）。UI も合法手だけをハイライト。
+- **王手・詰み判定**（`rules.ts`）：`isInCheck` / `hasAnyLegalMove` / `isCheckmated`。現手番が王手中なら王のマスを赤くハイライト。
+- **詰みの判定時点（決定事項）**：「**詰まされる人の手番**」で判定する。＝着手後にいったん次の生存者へ手番を送り、その人が合法手ゼロ（＋王手なら詰み／王手なしなら手詰まり）なら決着・脱落。
+  - 効果：王手をかけられても、間に指す他の 2 人が割り込んで助け（取る・遮る）られる ＝ 4 人ならではの駆け引きが生まれる。
+- **脱落者の駒（決定事項）**：盤上に残るが **王手をかけない**（動かない＝実際には王を取れないため）。スライド駒の利きを遮る障害物・取られる対象としては機能する。`rules.ts` は脱落者の駒を攻撃判定から除外する。
+- **案A**：次の手番者が詰み／手詰まりなら即決着。勝者は王手をかけている陣（複数なら直前に指した人を優先、手詰まりはその局面を作った人）。`GameState.result`。
+- **案B**：詰み／手詰まりの人を脱落させ（`eliminated[seat]=true`）、手番から外す。1 人になったら勝ち。脱落で他陣の利きが消え、玉が救われるカスケードも `engine.finalize` が処理。
 
 ---
 
 ## 3. 未確定・要決定（次に決めること）
 
-### 勝敗ルール（**作者が 2 案で迷い中**）
+### 勝敗ルール（**切り替え式で実装済み → 遊んで A/B を選定する段階**）
 - 案A：**誰かの王を詰ませたら、その人の勝ち**（早抜け）。
 - 案B：**詰まされたら脱落、最後の 1 人が勝ち**（生き残り）。
-- → **方針：対局開始時に選べる「切り替え式」で実装**して、遊びながら決められるようにする。
+- → 対局開始時に選べる「切り替え式」で実装済み（§2「勝敗・脱落」）。**実際に遊んで A/B どちらを正式採用するか決める**のが次の判断。
+- 関連の細則（**実装済みの既定**。遊んで違和感があれば再検討）：
+  - 詰みは「詰まされる人の手番」で判定（割り込み可）。
+  - 脱落者の駒は王手をかけない。
+  - 手詰まり（合法手ゼロかつ王手なし＝ステイルメイト）は、案A は負け扱い・案B は脱落扱い（将棋準拠で「指せない＝負け」）。稀ケース。違う扱いにするなら `engine.finalize` を調整。
 
 ### 脱落者の駒（決定済み）
-- 脱落したプレイヤーの盤上の駒は**盤上に残る**（動かない障害物として残り、誰かが取れば持ち駒になる）。
+- 脱落したプレイヤーの盤上の駒は**盤上に残る**（動かない障害物として残り、誰かが取れば持ち駒になる）。**王手はかけない**（実装済み）。
 
 ### その他の検討事項
 - **盤の幾何の副作用**：四隅で陣どうしが近く、**初手から桂が隣の陣の歩を取れる**。意図どおりか要確認（初期配置や桂の扱いの調整余地）。
@@ -81,17 +96,18 @@
 - 盤の描画（十字型・駒台・中央ゾーン・視点切替）
 - 合法手生成（全駒・回転対応・十字盤対応・スライド/ステップ）
 - 選択→ハイライト→移動、取る→持ち駒、打つ
-- 時計回りの手番
+- 時計回りの手番（脱落者スキップ対応）
 - 成り（ゾーン判定・任意/強制・選択モーダル）
+- **王手判定**（`rules.isInCheck` / `isSquareAttacked`、脱落者の駒は除外）
+- **着手の合法性**（`rules.legalMoves` / `isLegalDrop`、自玉が取られる手を禁止。UI も合法手のみ表示）
+- **詰み判定**（`rules.hasAnyLegalMove` / `isCheckmated`）
+- **勝敗・脱落（切り替え式 案A/案B）**（`engine.finalize`、`GameState.rule/eliminated/result`、決着モーダル・脱落表示・王手ハイライト）
 
 ### 未実装（TODO・おすすめ着手順）
-1. **王手（チェック）判定**：ある陣の王が利きに入っているか。`generateMoves` を全敵駒に対して走らせて王の位置が含まれるか判定する関数を追加。
-2. **着手の合法性**：自分の王が取られる手を禁止（現在は擬似合法手のみ許可）。
-3. **詰み判定**：ある陣に合法手が一つも無く、かつ王手 → 詰み。
-4. **勝敗・脱落（切り替え式）**：上記 2 案をオプション化。脱落者の駒は盤に残す。手番スキップ。
-5. **打ち制限**：二歩（十字盤での「筋」の定義に注意）・打ち歩詰め。
-6. **オンライン同期**：リアルタイム同期。フロントのみなので Firebase / Supabase Realtime などのバックエンドが要る。状態は `GameState`（`game.ts`）を 1 つの真実として同期する設計が素直。各クライアントは自分の `view` を固定。
-7. プレイヤー名の設定 UI。
+1. **打ち制限**：二歩（十字盤での「筋」の定義に注意）・打ち歩詰め。
+2. **オンライン同期**：リアルタイム同期。フロントのみなので Firebase / Supabase Realtime などのバックエンドが要る。状態は `GameState`（`game.ts`）を 1 つの真実として同期する設計が素直。各クライアントは自分の `view` を固定。
+3. プレイヤー名の設定 UI。
+4. （余裕があれば）連続王手の千日手・持将棋などの細則。
 
 ---
 
@@ -99,11 +115,12 @@
 
 | ファイル | 役割 |
 |---|---|
-| `src/game.ts` | 盤の幾何（`isOnBoard` / `isCenterZone` / `homeSeatOf`）、型（`Piece` / `Board` / `GameState` / `Selection`）、回転（`rotateCW` / `quarterDiff` / `viewToBoard`）、初期配置（`createInitialBoard` / `createInitialState`）、手番（`nextSeat` / `TURN_ORDER`）、`SEAT_INFO`、`KANJI` |
-| `src/moves.ts` | 合法手生成（`generateMoves`）、駒パターン、成りゾーン判定（`isPromotionZone` / `canPromote` / `mustPromote`）、打ち判定（`canDrop`） |
-| `src/engine.ts` | 状態遷移の純粋関数（`applyMove` / `applyDrop`）。取り→持ち駒、成り反映、手番送り |
-| `src/Board.tsx` | 盤・駒・駒台・名前ラベルの描画、クリック処理。`view` に応じて盤と字を回転 |
-| `src/App.tsx` | `GameState` の保持、選択・移動・打ち・成りモーダル・視点切替の取りまとめ |
+| `src/game.ts` | 盤の幾何（`isOnBoard` / `isCenterZone` / `homeSeatOf`）、型（`Piece` / `Board` / `GameState`{`board,hands,turn,rule,eliminated,result`} / `WinRule` / `GameResult` / `Selection`）、回転（`rotateCW` / `quarterDiff` / `viewToBoard`）、初期配置（`createInitialBoard` / `createInitialState(rule)`）、手番（`nextSeat` / `nextLiveSeat` / `liveSeats` / `TURN_ORDER`）、`SEAT_INFO`、`KANJI` |
+| `src/moves.ts` | 擬似合法手生成（`generateMoves`：盤内・自駒衝突のみ。王手放置は見ない）、駒パターン、成りゾーン判定（`isPromotionZone` / `canPromote` / `mustPromote`）、打ち判定（`canDrop`） |
+| `src/rules.ts` | **王手・着手の合法性・詰み判定**。`findKing` / `isSquareAttacked` / `isInCheck` / `checkingSeats`（勝者特定）/ `legalMoves`（自玉が取られる手を除外）/ `isLegalDrop` / `hasAnyLegalMove` / `isCheckmated`。脱落者の駒は攻撃判定から除外。 |
+| `src/engine.ts` | 状態遷移の純粋関数（`applyMove` / `applyDrop`）。取り→持ち駒、成り反映、`finalize`（手番送り＋詰み/手詰まり判定＋案A決着・案B脱落カスケード） |
+| `src/Board.tsx` | 盤・駒・駒台・名前ラベルの描画、クリック処理。`view` に応じて盤と字を回転。脱落者の淡色表示・「脱落」バッジ・王手中の王の赤ハイライト（`checkKing`） |
+| `src/App.tsx` | `GameState` の保持、選択・移動・打ち・成りモーダル・視点切替・勝敗ルール切替・決着モーダルの取りまとめ。`targets` は `rules` の合法手のみ |
 | `src/index.css` | スタイル全般 |
 
 ### 座標と回転の要点（重要）
@@ -125,6 +142,8 @@ npx esbuild check.ts --bundle --format=esm --platform=node --outfile=check.mjs &
 ---
 
 ## 6. 既知の注意点・設計判断
-- 現状は**擬似合法手**のみ（王手放置を許す）。対人で遊ぶ分には動くが、ルール上は要修正（TODO 1–2）。
-- `structuredClone` で `GameState` を複製している（駒は素のオブジェクトなので問題なし）。
+- `moves.generateMoves` は**擬似合法手**（盤内・自駒衝突のみ）。**王手放置のフィルタは `rules.legalMoves` / `isLegalDrop` 側**で行う。UI（`App.targets`）と詰み判定（`hasAnyLegalMove`）は必ず `rules` 側を通すこと。`generateMoves` を直接 UI に使うと違法手が指せてしまう。
+- 攻撃・詰み判定は素朴な総当たり（全駒 × `generateMoves` × 着手シミュレーション）。盤が小さく手番制なので実用上問題ないが、重くなったら攻撃テーブル化を検討。
+- 勝敗の判定時点は「詰まされる人の手番」。`applyMove`/`applyDrop` → `engine.finalize` の中で次手番者を判定する流れ。決着後は `applyMove`/`applyDrop` が `state.result` を見て何もしない。
+- `structuredClone` で `GameState` を複製している（`eliminated`/`result` も含めて深いコピー。駒は素のオブジェクトなので問題なし）。`rules` 内のシミュレーションは行配列の浅いコピー（駒は共有・不変）で高速化。
 - React は StrictMode。状態は不変更新。

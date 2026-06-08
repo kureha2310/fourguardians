@@ -1,0 +1,24 @@
+# 四神将棋 — ローカル仮想環境（Vite dev server）
+#
+#   起動 : docker compose up           （--build で再ビルド）
+#   停止 : Ctrl+C  または  docker compose down
+#   表示 : http://localhost:5180/
+#
+# ホストに Node が無くても、このコンテナ内の Node/依存で動きます。
+services:
+  web:
+    build: .
+    ports:
+      # ホスト:コンテナ。5173 が他プロセスで使用中のため 5180 を使用。
+      # HMR(WebSocket) を確実に通すため、ホスト側とコンテナ側を同じ番号にする。
+      - "5180:5180"
+    volumes:
+      # ソースをマウント → エディタでの編集が即反映（ホットリロード）
+      - .:/app
+      # node_modules はコンテナ側（Linux 用にインストール済み）を使い、
+      # ホストの node_modules で上書きされないようにする
+      - /app/node_modules
+    environment:
+      # vite.config がファイル監視をポーリングに切替（Windows バインドマウント対策）
+      - VITE_DOCKER=1
+    command: npm run dev -- --host 0.0.0.0 --port 5180

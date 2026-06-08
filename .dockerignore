@@ -1,0 +1,9 @@
+# ホストの node_modules / ビルド成果物はイメージに入れない
+# （node_modules は OS 依存バイナリを含むため、コンテナ内で npm ci し直す）
+node_modules
+dist
+.git
+*.log
+npm-debug.log*
+check.ts
+check.mjs
