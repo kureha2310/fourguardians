@@ -1,0 +1,303 @@
+:root {
+  --cell: 44px;
+  font-family: system-ui, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+  color-scheme: light dark;
+  background-color: #1a1a1a;
+  color: #f5f5f5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+}
+
+.app {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.app header {
+  text-align: center;
+}
+
+.app h1 {
+  font-size: 2rem;
+  margin: 0 0 0.75rem;
+}
+
+/* ---- 視点切り替え ---- */
+.view-switch {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.view-label {
+  opacity: 0.8;
+  font-size: 0.85rem;
+}
+
+.view-switch button {
+  border: 1px solid #555;
+  background: #2c2c2c;
+  color: #f5f5f5;
+  border-radius: 6px;
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.view-switch button.active {
+  color: #fff;
+  border-color: transparent;
+  font-weight: 600;
+}
+
+/* ---- 盤まわりのレイアウト（3×3：隅=駒台, 辺=名前, 中央=盤） ---- */
+.table {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  grid-template-rows: auto auto auto;
+  gap: 6px;
+  align-items: center;
+  justify-items: center;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(11, var(--cell));
+  grid-template-rows: repeat(11, var(--cell));
+}
+
+.cell {
+  width: var(--cell);
+  height: var(--cell);
+  border: 1px solid #b9a96a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cell.off {
+  border: none;
+  background: transparent;
+}
+
+.cell {
+  cursor: pointer;
+  position: relative;
+}
+
+.cell.off {
+  cursor: default;
+}
+
+/* 選択中のマス */
+.cell.sel {
+  outline: 3px solid #2f80ed;
+  outline-offset: -3px;
+  z-index: 2;
+}
+
+/* 移動可能な空きマス：中央にドット */
+.cell.target::after {
+  content: '';
+  position: absolute;
+  width: 30%;
+  height: 30%;
+  border-radius: 50%;
+  background: rgba(47, 128, 237, 0.55);
+}
+
+/* 取れる駒があるマス：リング */
+.cell.target-capture::before {
+  content: '';
+  position: absolute;
+  inset: 8%;
+  border: 3px solid rgba(224, 64, 64, 0.85);
+  border-radius: 50%;
+  z-index: 1;
+}
+
+/* ---- 駒 ---- */
+.piece {
+  width: 86%;
+  height: 86%;
+  background: linear-gradient(#f7d68a, #efc063);
+  border: 1.5px solid #c98f2e;
+  border-radius: 4px 4px 5px 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: calc(var(--cell) * 0.5);
+  color: #2a2118;
+  user-select: none;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
+}
+
+.piece.promoted {
+  color: #b3261e;
+}
+
+/* ---- 名前ラベル ---- */
+.seat-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.seat-name.turn {
+  text-shadow: 0 0 8px currentColor;
+}
+
+.turn-badge {
+  font-size: 0.7rem;
+  background: #333;
+  color: #fff;
+  border-radius: 4px;
+  padding: 0.05rem 0.3rem;
+}
+
+.turn-line {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+/* ---- 駒台 ---- */
+.komadai {
+  width: calc(var(--cell) * 2.6);
+  height: calc(var(--cell) * 2.6);
+  border: 2px solid;
+  border-radius: 6px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 4px 6px;
+}
+
+.komadai {
+  flex-direction: column;
+  gap: 4px;
+}
+
+.komadai-label {
+  font-size: 0.7rem;
+  color: #333;
+  opacity: 0.75;
+}
+
+.hand-pieces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  align-content: flex-start;
+}
+
+.hand-piece {
+  width: calc(var(--cell) * 0.72);
+  height: calc(var(--cell) * 0.78);
+  background: linear-gradient(#f7d68a, #efc063);
+  border: 1.5px solid #c98f2e;
+  border-radius: 3px 3px 4px 4px;
+  font-weight: 700;
+  font-size: calc(var(--cell) * 0.42);
+  color: #2a2118;
+  padding: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hand-piece.mine {
+  cursor: pointer;
+}
+
+.hand-piece:disabled {
+  cursor: default;
+}
+
+.hand-piece.sel {
+  outline: 3px solid #2f80ed;
+  outline-offset: -1px;
+}
+
+.hand-count {
+  position: absolute;
+  right: 1px;
+  bottom: -2px;
+  font-size: 0.55rem;
+  color: #b3261e;
+}
+
+.reset {
+  margin-left: 0.5rem;
+}
+
+/* ---- 成り選択モーダル ---- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.modal {
+  background: #2c2c2c;
+  border: 1px solid #555;
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.modal p {
+  margin: 0 0 1rem;
+  font-size: 1.1rem;
+}
+
+.modal p b {
+  font-size: 1.4rem;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.modal-buttons button {
+  font: inherit;
+  font-size: 1rem;
+  padding: 0.5rem 1.25rem;
+  border-radius: 8px;
+  border: 1px solid #666;
+  background: #3a3a3a;
+  color: #f5f5f5;
+  cursor: pointer;
+}
+
+.modal-buttons button.promote {
+  background: #b3261e;
+  border-color: transparent;
+  font-weight: 700;
+}
