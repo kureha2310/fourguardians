@@ -3,7 +3,7 @@
 このファイルは、別のセッション／チャットで開発を引き継ぐための仕様・決定事項・残作業のまとめです。
 **ルールは考案者のオリジナル**なので、コードだけでは読み取れない決定をここに記録しています。
 
-最終更新: 2026-06-08（勝敗・脱落／王手・詰み判定を実装）
+最終更新: 2026-06-09（オンライン対戦＝Firebase＋Vercel デプロイ、駒画像・UIレイアウト刷新を追加）
 
 ---
 
@@ -11,8 +11,9 @@
 
 - 4 人対戦の将棋バリアント。陣営テーマは四神（青龍・白虎・朱雀・玄武）。
 - 駒の動きは**完全に将棋と同じ**。違いは「十字型の盤を 4 人で囲む」「前＝中央方向」という点。
-- **最終目標：オンラインのリアルタイム同期**で、各プレイヤーが自分の陣を手前に見て遊べること。
-  - 現状はまだローカル同卓（1 画面で 4 人が順に指す）。オンライン化は未着手。
+- **目標だったオンラインのリアルタイム同期は実装済み**：各プレイヤーが自分の陣を手前に固定して遊べる。
+  - 公開URL: **https://fourguardians.vercel.app**（Vercel。GitHub main への push で自動再デプロイ）。
+  - 入口でモード選択：**オンライン対戦（Firebase 同期）** / **ローカル同卓（1 画面で交代）**。
 
 ---
 
@@ -55,7 +56,7 @@
 ### 手番
 - **時計回り**：south → west → north → east → …（`TURN_ORDER` / `nextSeat`）。
 - 脱落者がいる場合は飛ばす（`nextLiveSeat`）。
-- 手番が進むと、その人の陣を自動で手前に表示（ローカル同卓向け。オンライン化時は自分視点固定にする）。
+- 視点は**固定**（手番では自動回転しない）。オンラインは自席を手前に固定、ローカルは「手前に見る陣」ボタンで手動切替。
 
 ### 勝敗・脱落（実装済み・切り替え式）
 - 対局開始時に **案A（早抜け）/ 案B（生き残り）** を選ぶ（`GameState.rule` = `'first' | 'survivor'`）。ルール切替＝対局リセット。
@@ -85,7 +86,7 @@
 
 ### その他の検討事項
 - **盤の幾何の副作用**：四隅で陣どうしが近く、**初手から桂が隣の陣の歩を取れる**。意図どおりか要確認（初期配置や桂の扱いの調整余地）。
-- プレイヤー名は仮置き（hunter / ざつだ… / kisaragi / あなた）。設定 UI 未実装。
+- プレイヤー名は**記入制**（実装済み）。ローカルは4人ぶん入力＋「ランダム配置／入力順」、オンラインはロビーで各自入力し開始時に4席ランダム割当。
 
 ---
 
@@ -102,12 +103,18 @@
 - **着手の合法性**（`rules.legalMoves` / `isLegalDrop`、自玉が取られる手を禁止。UI も合法手のみ表示）
 - **詰み判定**（`rules.hasAnyLegalMove` / `isCheckmated`）
 - **勝敗・脱落（切り替え式 案A/案B）**（`engine.finalize`、`GameState.rule/eliminated/result`、決着モーダル・脱落表示・王手ハイライト）
+- **UI 刷新**：駒を画像表示（`public/pieces/`。表＝黒字・裏＝赤字、所有者は縁取り色で識別）、持ち駒は十字盤の空き四隅、名前は各自の玉の下、視点固定。
+- **参加者名の記入制＋ランダム配置**（ローカル・オンライン両方）。
+- **オンライン対戦（Firebase Realtime Database）**：部屋作成/参加・参加者のリアルタイム表示・状態同期（`firebase.ts` / `room.ts` / `OnlineGame.tsx`）。
+- **デプロイ**：Vercel（main 自動デプロイ、https://fourguardians.vercel.app ）。**ローカル開発**：Docker（`docker compose up` → http://localhost:5180/）。詳細は §6。
 
-### 未実装（TODO・おすすめ着手順）
+### 未実装（TODO）
 1. **打ち制限**：二歩（十字盤での「筋」の定義に注意）・打ち歩詰め。
-2. **オンライン同期**：リアルタイム同期。フロントのみなので Firebase / Supabase Realtime などのバックエンドが要る。状態は `GameState`（`game.ts`）を 1 つの真実として同期する設計が素直。各クライアントは自分の `view` を固定。
-3. プレイヤー名の設定 UI。
-4. （余裕があれば）連続王手の千日手・持将棋などの細則。
+2. **勝敗ルール A/B の正式決定**：遊んで案A（早抜け）/案B（生き残り）どちらを採用するか決める（切替実装は済み）。
+3. **4人未満での開始**：現状オンラインは **4人ちょうど**で開始（空席を扱えない）。2〜3人で遊ぶなら「空席＝不在席（駒なし or 最初から脱落）」対応が要る。
+4. **古い部屋の自動削除**：`rooms/{code}` が溜まり続ける。作成時刻での掃除（入室時に期限切れ削除 or Cloud Functions）。
+5. **匿名認証でルール強化（任意）**：今は `/rooms` を誰でも読み書き可。Firebase Anonymous Auth で `auth != null` に締められる（`firebase/auth` 追加＋再デプロイ）。
+6. （余裕があれば）連続王手の千日手・持将棋などの細則。
 
 ---
 
@@ -119,8 +126,13 @@
 | `src/moves.ts` | 擬似合法手生成（`generateMoves`：盤内・自駒衝突のみ。王手放置は見ない）、駒パターン、成りゾーン判定（`isPromotionZone` / `canPromote` / `mustPromote`）、打ち判定（`canDrop`） |
 | `src/rules.ts` | **王手・着手の合法性・詰み判定**。`findKing` / `isSquareAttacked` / `isInCheck` / `checkingSeats`（勝者特定）/ `legalMoves`（自玉が取られる手を除外）/ `isLegalDrop` / `hasAnyLegalMove` / `isCheckmated`。脱落者の駒は攻撃判定から除外。 |
 | `src/engine.ts` | 状態遷移の純粋関数（`applyMove` / `applyDrop`）。取り→持ち駒、成り反映、`finalize`（手番送り＋詰み/手詰まり判定＋案A決着・案B脱落カスケード） |
-| `src/Board.tsx` | 盤・駒・駒台・名前ラベルの描画、クリック処理。`view` に応じて盤と字を回転。脱落者の淡色表示・「脱落」バッジ・王手中の王の赤ハイライト（`checkKing`） |
-| `src/App.tsx` | `GameState` の保持、選択・移動・打ち・成りモーダル・視点切替・勝敗ルール切替・決着モーダルの取りまとめ。`targets` は `rules` の合法手のみ |
+| `src/Board.tsx` | 盤・駒（画像）・持ち駒・名前の描画、クリック処理。`view` に応じて盤と駒を回転。持ち駒は十字の空き四隅、名前は各自の玉の下。脱落者の淡色表示・王手の赤ハイライト（`checkKing`） |
+| `src/GameBoard.tsx` | **対局UIの共通部品**（ローカル/オンライン兼用）。選択・合法手ハイライト・成り選択・決着表示を内包。着手後の新 `GameState` を `onCommit` で親へ。`controllable` で操作可否を制御 |
+| `src/App.tsx` | 入口ルーター（ホーム→ローカル/オンライン）。URL に `?room=` があれば最初からオンラインへ |
+| `src/LocalGame.tsx` | ローカル同卓（名前入力＋ランダム配置のセットアップ→`GameBoard`、`onCommit=setGame`） |
+| `src/OnlineGame.tsx` | オンライン（名前→部屋作成/参加→ロビー→対局）。`room.ts` を購読、自席手前固定・自手番のみ操作・`onCommit=pushState` |
+| `src/firebase.ts` | Firebase 初期化（`.env.local` の `VITE_FIREBASE_*` を読む。未設定なら `db=null`・`isFirebaseConfigured=false`） |
+| `src/room.ts` | オンライン同期レイヤー（RTDB）。部屋作成/参加・presence・参加者購読・席ランダム割当・状態書き込み。`playerId` は localStorage（`?pid=` で上書き＝多タブテスト用） |
 | `src/index.css` | スタイル全般 |
 
 ### 座標と回転の要点（重要）
@@ -141,9 +153,49 @@ npx esbuild check.ts --bundle --format=esm --platform=node --outfile=check.mjs &
 
 ---
 
-## 6. 既知の注意点・設計判断
+## 6. オンライン対戦・デプロイ・開発環境
+
+### データ構造（Firebase Realtime Database）
+```
+rooms/{code}/
+  meta    : { phase: 'lobby'|'playing'|'finished', rule, hostId, createdAt }
+  players : { [playerId]: { name, seat, online, joinedAt } }
+  state   : GameState を JSON 文字列化したもの（対局中の唯一の真実）
+```
+- 盤は null/配列を含むため、RTDB の配列・null の癖を避けて **`state` は GameState まるごとを JSON 文字列**で持つ（ターン制で書き込み頻度が低いので十分）。
+- 着手は「その手番のクライアント」だけが `engine.applyMove/applyDrop` → `room.pushState` で `state` を上書き。全員が `subscribeRoom` で購読して再描画（単一の真実）。
+- `playerId` は localStorage 永続（リロードで同一人物）。`?pid=` で上書きでき、同一ブラウザの複数タブを別人としてテストできる。
+
+### フロー
+入口でモード選択 →（オンライン）名前入力 → 部屋を作る（4文字コード生成）/コードで参加 → ロビー（参加者リアルタイム表示）→ **4人ちょうど**でホストが開始 → 席をランダム割当 → 対局（自席手前固定・自手番のみ操作）→ 決着でホストが「再戦」。
+
+### 設定（環境変数）
+- `.env.local`（gitignore 済み）に `VITE_FIREBASE_*` の5つ。`.env.example` がテンプレート。
+- 公開キーなので秘密ではない（セキュリティは DB ルールで担保）。
+- **Vercel にも同じ5つを環境変数登録**（未登録だと本番で繋がらない）。env を変えたら**再デプロイ必須**（Vite がビルド時に焼き込むため）。Firebase プロジェクトは `fourguardians-fabc8`。
+
+### DB ルール（公開済み・期限なし）
+```json
+{ "rules": { ".read": false, ".write": false, "rooms": { ".read": true, ".write": true } } }
+```
+- root は拒否、`/rooms` のみ読み書き可。テストモード（30日で失効）は置換済み。
+
+### デプロイ（Vercel）
+- GitHub `kureha2310/fourguardians` を連携。**main に push で自動再デプロイ**。Framework=Vite / build=`npm run build` / output=`dist`。
+
+### ローカル開発（Docker）
+- `docker compose up` → http://localhost:5180/。ソースはバインドマウントで HMR、`node_modules` はコンテナ側。
+- Windows のバインドマウント対策で、`vite.config.ts` は `VITE_DOCKER` 時のみ watch をポーリングに。
+- 依存を増やしたら（例：`firebase` 追加時）`docker compose up -d --build --renew-anon-volumes` で再構築（匿名 node_modules ボリュームを作り直す）＋ `.env.local` 再読込。
+
+---
+
+## 7. 既知の注意点・設計判断
 - `moves.generateMoves` は**擬似合法手**（盤内・自駒衝突のみ）。**王手放置のフィルタは `rules.legalMoves` / `isLegalDrop` 側**で行う。UI（`App.targets`）と詰み判定（`hasAnyLegalMove`）は必ず `rules` 側を通すこと。`generateMoves` を直接 UI に使うと違法手が指せてしまう。
 - 攻撃・詰み判定は素朴な総当たり（全駒 × `generateMoves` × 着手シミュレーション）。盤が小さく手番制なので実用上問題ないが、重くなったら攻撃テーブル化を検討。
 - 勝敗の判定時点は「詰まされる人の手番」。`applyMove`/`applyDrop` → `engine.finalize` の中で次手番者を判定する流れ。決着後は `applyMove`/`applyDrop` が `state.result` を見て何もしない。
 - `structuredClone` で `GameState` を複製している（`eliminated`/`result` も含めて深いコピー。駒は素のオブジェクトなので問題なし）。`rules` 内のシミュレーションは行配列の浅いコピー（駒は共有・不変）で高速化。
 - React は StrictMode。状態は不変更新。
+- オンライン同期は楽観更新しない：着手したクライアントも `pushState` の購読エコー（onValue）で再描画する（＝全員が同じ `state` を見る）。
+- `GameBoard` の `controllable` が操作可否（local=常時 / online=自席が手番）。`Board` の持ち駒は「手番席」を mine 扱いするため、オンラインで相手手番の駒台が押せそうに見えるが、操作はガードで無効（軽微な見た目の問題のみ）。
+- 検証用の `check.ts`（esbuild→node、§5）はコミットに含めない運用。
