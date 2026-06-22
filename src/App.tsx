@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import LocalGame from './LocalGame'
 import OnlineGame from './OnlineGame'
+import { RulesButton } from './RulesHelp'
 
 type Mode = 'home' | 'local' | 'online'
 
@@ -26,6 +27,7 @@ function App() {
         <button className="start" onClick={() => setMode('local')}>
           🪑 ローカル同卓（1画面で交代）
         </button>
+        <RulesButton className="start" />
       </div>
     </div>
   )

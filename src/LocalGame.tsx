@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import GameBoard from './GameBoard'
+import { RulesButton } from './RulesHelp'
 import { createInitialState, type GameState, type Seat, type WinRule } from './game'
 
 const RULE_LABEL: Record<WinRule, string> = {
@@ -105,6 +106,7 @@ export default function LocalGame({ onExit }: { onExit: () => void }) {
             <button className="start" onClick={() => startGame(false)}>
               入力順で開始
             </button>
+            <RulesButton className="link-btn" />
             <button className="link-btn" onClick={onExit}>
               ← モード選択に戻る
             </button>
@@ -121,6 +123,7 @@ export default function LocalGame({ onExit }: { onExit: () => void }) {
           <h1>四神将棋</h1>
           <span className="rule-pill">{game.rule === 'first' ? '案A 早抜け' : '案B 生き残り'}</span>
           <div className="topbar-actions">
+            <RulesButton className="" />
             <button onClick={restart}>最初から</button>
             <button onClick={() => setPhase('setup')}>メンバー変更</button>
             <button onClick={onExit}>モード選択</button>

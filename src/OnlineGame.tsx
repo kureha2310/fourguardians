@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import GameBoard from './GameBoard'
+import { RulesButton } from './RulesHelp'
 import { type Seat, type WinRule } from './game'
 import { isFirebaseConfigured } from './firebase'
 import {
@@ -171,6 +172,7 @@ export default function OnlineGame({ onExit }: { onExit: () => void }) {
           </section>
 
           {error && <p className="error-box">{error}</p>}
+          <RulesButton className="link-btn" />
           <button className="link-btn" onClick={onExit}>
             ← モード選択に戻る
           </button>
@@ -260,6 +262,7 @@ export default function OnlineGame({ onExit }: { onExit: () => void }) {
             </p>
           )}
 
+          <RulesButton className="link-btn" />
           <button className="link-btn" onClick={handleLeave}>
             ← 退出する
           </button>
@@ -283,6 +286,7 @@ export default function OnlineGame({ onExit }: { onExit: () => void }) {
           <span className="rule-pill">{RULE_LABEL[state.rule]}</span>
           <span className="rule-pill code-pill">部屋 {code}</span>
           <div className="topbar-actions">
+            <RulesButton className="" />
             {isHost && state.result && (
               <button onClick={() => code && restartGame(code, state.rule)}>再戦</button>
             )}

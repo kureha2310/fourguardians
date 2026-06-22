@@ -672,3 +672,46 @@ body {
   font-size: 0.85rem;
   opacity: 0.8;
 }
+
+/* ---- ルール説明モーダル ---- */
+.rules-modal {
+  background: #2c2c2c;
+  border: 1px solid #555;
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  max-width: min(560px, 92vw);
+  max-height: 82vh;
+  overflow-y: auto;
+  text-align: left;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.rules-modal h2 {
+  margin: 0 0 0.8rem;
+  font-size: 1.35rem;
+}
+
+.rules-modal h3 {
+  margin: 1.1rem 0 0.3rem;
+  font-size: 1rem;
+  color: #f3c6ee;
+}
+
+.rules-modal p,
+.rules-modal li {
+  font-size: 0.9rem;
+  line-height: 1.65;
+  opacity: 0.95;
+}
+
+.rules-modal ul {
+  margin: 0.2rem 0;
+  padding-left: 1.2rem;
+}
+
+.rules-modal .modal-buttons {
+  position: sticky;
+  bottom: -1.25rem;
+  margin-top: 1rem;
+  padding-top: 0.5rem;
+}
